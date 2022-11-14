@@ -105,49 +105,51 @@ class USBPrinterAdapter {
     }
 
     fun selectDevice(vendorId: Int, productId: Int, deviceName: String?, manufacturerName: String?): Boolean {
-      val usbDevices = getDeviceList().filter{it.vendorId == vendorId && it.productId == productId };
+      val usbDevices = getDeviceList().filter{it.vendorId == vendorId && it.productId == productId }
       // if no device, return false
       if (usbDevices.size <= 0) {
-        return false;
+        return false
       }
       
-      val filteredByManufactureName  = false;
-      val filteredDeviceName = false;
+      var filteredByManufactureName  = false
+      var filteredDeviceName = false
 
       // Adds more filter condition, by manufacture names or device names in case
       // there are multiple devices with same productId and vendorId connected to the android.
-      UsbDevice targetUsbDevice = usbDevices[0];
-      List<UsbDevice> usbFilteredByManufactureNames = usbDevices.filter{ it.manufacturerName == manufacturerName};
+      var targetUsbDevice = usbDevices[0]
+      val usbFilteredByManufactureNames = usbDevices.filter{ it.manufacturerName == manufacturerName}
       if (usbFilteredByManufactureNames.size > 0) {
-        targetUsbDevice = usbFilteredByManufactureNames[0];
-        filteredByManufactureName = true;
-        List<UsbDevice> usbFilterByDeviceNames = usbFilteredByManufactureNames.filter{ it.deviceName == deviceName};
+        targetUsbDevice = usbFilteredByManufactureNames[0]
+        filteredByManufactureName = true
+        val usbFilterByDeviceNames = usbFilteredByManufactureNames.filter{ it.deviceName == deviceName}
         if (usbFilterByDeviceNames.size > 0) {
-          targetUsbDevice = usbFilterByDeviceNames[0];
-          filteredDeviceName = true;
+          targetUsbDevice = usbFilterByDeviceNames[0]
+          filteredDeviceName = true
         }
       }
       // Check if targetUsb is same as current connected usb device or not
-      val isSameDevice = true;
+      var isSameDevice = false
       if (mUsbDevice != null) {
+        isSameDevice = true
         if (mUsbDevice!!.vendorId != vendorId || mUsbDevice!!.productId != productId) {
-          isSameDevice = false;
+          isSameDevice = false
         } else if (filteredByManufactureName && mUsbDevice!!.manufacturerName != manufacturerName) {
-          isSameDevice = false;
+          isSameDevice = false
         } else if (filteredDeviceName && mUsbDevice!!.deviceName != deviceName) {
-          isSameDevice = false;
+          isSameDevice = false
         }
-      }
+      } 
+
       if (isSameDevice) {
-        return true;
+        return true
       }
-      closeConnectionIfExists();
+      closeConnectionIfExists()
       Log.v(
         LOG_TAG,
         "Request for device: vendor_id: " + targetUsbDevice.vendorId + ", product_id: " + targetUsbDevice.productId +
           ", device_name: " + targetUsbDevice.deviceName  + ", manufacturer_name: " + targetUsbDevice.manufacturerName
       )
-      mUSBManager!!.requestPermission(targetUsbDevice, mPermissionIndent);
+      mUSBManager!!.requestPermission(targetUsbDevice, mPermissionIndent)
       return true
     }
     
