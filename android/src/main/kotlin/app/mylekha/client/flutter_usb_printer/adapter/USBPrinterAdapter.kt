@@ -105,34 +105,52 @@ class USBPrinterAdapter {
     }
 
     fun selectDevice(vendorId: Int, productId: Int, deviceName: String?, manufacturerName: String?): Boolean {
-        if (mUsbDevice == null || (mUsbDevice!!.vendorId != vendorId) || 
-                (mUsbDevice!!.productId != productId) || 
-                ((mUsbDevice!!.deviceName != deviceName) && (deviceName != null)) || 
-                ((mUsbDevice!!.manufacturerName != manufacturerName) && (manufacturerName != null))) {
+      val usbDevices = getDeviceList().filter{it.vendorId == vendorId && it.productId == productId };
+      // if no device, return false
+      if (usbDevices.size <= 0) {
+        return false;
+      }
+      
+      val filteredByManufactureName  = false;
+      val filteredDeviceName = false;
 
-            closeConnectionIfExists()
-            val usbDevices = getDeviceList()
-            for (usbDevice in usbDevices) {
-                
-                if (usbDevice.vendorId == vendorId && usbDevice.productId == productId 
-                        && ((usbDevice.deviceName == deviceName) || deviceName == null) 
-                        && ((usbDevice.manufacturerName == manufacturerName) || manufacturerName == null)) {
-                    
-                    Log.v(
-                        LOG_TAG,
-                        "Request for device: vendor_id: " + usbDevice.vendorId + ", product_id: " + usbDevice.productId + 
-                            ", device_name: " + usbDevice.deviceName  + ", manufacturer_name: " + usbDevice.manufacturerName
-                    )
-                    closeConnectionIfExists()
-                    mUSBManager!!.requestPermission(usbDevice, mPermissionIndent)
-                    return true
-                }
-            }
-            return false
+      // Adds more filter condition, by manufacture names or device names in case
+      // there are multiple devices with same productId and vendorId connected to the android.
+      UsbDevice targetUsbDevice = usbDevices[0];
+      List<UsbDevice> usbFilteredByManufactureNames = usbDevices.filter{ it.manufacturerName == manufacturerName};
+      if (usbFilteredByManufactureNames.size > 0) {
+        targetUsbDevice = usbFilteredByManufactureNames[0];
+        filteredByManufactureName = true;
+        List<UsbDevice> usbFilterByDeviceNames = usbFilteredByManufactureNames.filter{ it.deviceName == deviceName};
+        if (usbFilterByDeviceNames.size > 0) {
+          targetUsbDevice = usbFilterByDeviceNames[0];
+          filteredDeviceName = true;
         }
-        return true
+      }
+      // Check if targetUsb is same as current connected usb device or not
+      val isSameDevice = true;
+      if (mUsbDevice != null) {
+        if (mUsbDevice!!.vendorId != vendorId || mUsbDevice!!.productId != productId) {
+          isSameDevice = false;
+        } else if (filteredByManufactureName && mUsbDevice!!.manufacturerName != manufacturerName) {
+          isSameDevice = false;
+        } else if (filteredDeviceName && mUsbDevice!!.deviceName != deviceName) {
+          isSameDevice = false;
+        }
+      }
+      if (isSameDevice) {
+        return true;
+      }
+      closeConnectionIfExists();
+      Log.v(
+        LOG_TAG,
+        "Request for device: vendor_id: " + targetUsbDevice.vendorId + ", product_id: " + targetUsbDevice.productId +
+          ", device_name: " + targetUsbDevice.deviceName  + ", manufacturer_name: " + targetUsbDevice.manufacturerName
+      )
+      mUSBManager!!.requestPermission(targetUsbDevice, mPermissionIndent);
+      return true
     }
-
+    
     private fun openConnection(): Boolean {
         if (mUsbDevice == null) {
             Log.e(LOG_TAG, "USB Deivce is not initialized")
