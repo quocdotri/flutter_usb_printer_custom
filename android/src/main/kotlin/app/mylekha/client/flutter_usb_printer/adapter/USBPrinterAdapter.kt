@@ -49,7 +49,7 @@ class USBPrinterAdapter {
                     if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
                         Log.i(
                             LOG_TAG,
-                            "Success to grant permission for device " + usbDevice!!.deviceId + ", vendor_id: " + usbDevice.vendorId + " product_id: " + usbDevice.productId
+                            "Success to grant permission for device " + usbDevice!!.deviceName + ", vendor_id: " + usbDevice.vendorId + " product_id: " + usbDevice.productId
                         )
                         mUsbDevice = usbDevice
                     } else {
@@ -104,15 +104,24 @@ class USBPrinterAdapter {
         return ArrayList(mUSBManager!!.deviceList.values)
     }
 
-    fun selectDevice(vendorId: Int, productId: Int): Boolean {
-        if (mUsbDevice == null || mUsbDevice!!.vendorId != vendorId || mUsbDevice!!.productId != productId) {
+    fun selectDevice(vendorId: Int, productId: Int, deviceName: String?, manufacturerName: String?): Boolean {
+        if (mUsbDevice == null || (mUsbDevice!!.vendorId != vendorId) || 
+                (mUsbDevice!!.productId != productId) || 
+                ((mUsbDevice!!.deviceName != deviceName) && (deviceName != null)) || 
+                ((mUsbDevice!!.manufacturerName != manufacturerName) && (manufacturerName != null))) {
+
             closeConnectionIfExists()
             val usbDevices = getDeviceList()
             for (usbDevice in usbDevices) {
-                if (usbDevice.vendorId == vendorId && usbDevice.productId == productId) {
+                
+                if (usbDevice.vendorId == vendorId && usbDevice.productId == productId 
+                        && ((usbDevice.deviceName == deviceName) || deviceName == null) 
+                        && ((usbDevice.manufacturerName == manufacturerName) || manufacturerName == null)) {
+                    
                     Log.v(
                         LOG_TAG,
-                        "Request for device: vendor_id: " + usbDevice.vendorId + ", product_id: " + usbDevice.productId
+                        "Request for device: vendor_id: " + usbDevice.vendorId + ", product_id: " + usbDevice.productId + 
+                            ", device_name: " + usbDevice.deviceName  + ", manufacturer_name: " + usbDevice.manufacturerName
                     )
                     closeConnectionIfExists()
                     mUSBManager!!.requestPermission(usbDevice, mPermissionIndent)
