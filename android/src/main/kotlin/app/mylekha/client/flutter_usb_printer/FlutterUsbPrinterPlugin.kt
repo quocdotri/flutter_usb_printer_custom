@@ -38,12 +38,15 @@ class FlutterUsbPrinterPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
         "getUSBDeviceList" -> {
           getUSBDeviceList(result)
         }
-        "connect" -> {
+        "requestUsbPermission" -> {
           val vendorId = call.argument<Int>("vendorId")
           val productId = call.argument<Int>("productId")
           val deviceName = call.argument<String?>("deviceName")
           val manufacturerName = call.argument<String?>("manufacturerName")
-          connect(vendorId!!, productId!!, deviceName, manufacturerName, result)
+          requestUsbPermission(vendorId!!, productId!!, deviceName, manufacturerName, result)
+        }
+        "openConnection" -> {
+          openConnection(result)
         }
         "close" -> {
           close(result)
@@ -92,12 +95,13 @@ class FlutterUsbPrinterPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
     result.success(list)
   }
 
-  private fun connect(vendorId: Int, productId: Int, deviceName: String?, manufacturerName: String?, result: Result) {
-    if (!adapter!!.selectDevice(vendorId!!, productId!!, deviceName, manufacturerName)) {
-      result.success(false)
-    } else {
-      result.success(true)
-    }
+  private fun requestUsbPermission(vendorId: Int, productId: Int, deviceName: String?, manufacturerName: String?, result: Result) {
+    adapter!!.requestUsbPermission(vendorId!!, productId!!, deviceName, manufacturerName, result)
+  }
+
+  private fun openConnection(result: Result) {
+    val openConnectionResult = adapter!!.openConnection()
+    result.success(openConnectionResult)
   }
 
   private fun close(result: Result) {

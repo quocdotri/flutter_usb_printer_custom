@@ -11,6 +11,7 @@ import android.util.Log
 import android.widget.Toast
 import java.nio.charset.Charset
 import java.util.*
+import io.flutter.plugin.common.MethodChannel.Result
 
 
 class USBPrinterAdapter {
@@ -23,12 +24,12 @@ class USBPrinterAdapter {
     private var mUSBManager: UsbManager? = null
     private var mPermissionIndent: PendingIntent? = null
     private var mUsbDevice: UsbDevice? = null
-    private var mUsbDeviceConnection: UsbDeviceConnection? = null
-    private var mUsbInterface: UsbInterface? = null
-    private var mEndPoint: UsbEndpoint? = null
+    private var mUsbDeviceConnection = mutableMapOf<UsbDevice, UsbDeviceConnection?>()
+    private var mUsbInterface = mutableMapOf<UsbDevice, UsbInterface?>()
+    private var mEndPoint = mutableMapOf<UsbDevice,UsbEndpoint?>()
 
     private val ACTION_USB_PERMISSION = "app.mylekha.client.flutter_usb_printer.USB_PERMISSION"
-
+    var usbPermissionResultFlutterCallback: Result? = null // for usbPermisison
 
 
 
@@ -52,6 +53,7 @@ class USBPrinterAdapter {
                             "Success to grant permission for device " + usbDevice!!.deviceName + ", vendor_id: " + usbDevice.vendorId + " product_id: " + usbDevice.productId
                         )
                         mUsbDevice = usbDevice
+                        usbPermissionResultFlutterCallback?.success(true)
                     } else {
                         Toast.makeText(
                             context,
@@ -64,7 +66,7 @@ class USBPrinterAdapter {
                 if (mUsbDevice != null) {
                     Toast.makeText(context, "USB device has been turned off", Toast.LENGTH_LONG)
                         .show()
-                    closeConnectionIfExists()
+                    //closeConnectionIfExists()
                 }
             }
         }
@@ -83,13 +85,15 @@ class USBPrinterAdapter {
 
 
     fun closeConnectionIfExists() {
-        if (mUsbDeviceConnection != null) {
-            mUsbDeviceConnection!!.releaseInterface(mUsbInterface)
-            mUsbDeviceConnection!!.close()
-            mUsbInterface = null
-            mEndPoint = null
-            mUsbDeviceConnection = null
+        mUsbDeviceConnection.map{
+            if (mUsbInterface[it.key] != null) {
+                it.value?.releaseInterface(mUsbInterface[it.key]!!)
+            }
+            it.value?.close()
         }
+        mUsbDeviceConnection = mutableMapOf<UsbDevice, UsbDeviceConnection?>()
+        mUsbInterface = mutableMapOf<UsbDevice, UsbInterface?>()
+        mEndPoint = mutableMapOf<UsbDevice,UsbEndpoint?>()
     }
 
     fun getDeviceList(): List<UsbDevice> {
@@ -104,7 +108,8 @@ class USBPrinterAdapter {
         return ArrayList(mUSBManager!!.deviceList.values)
     }
 
-    fun selectDevice(vendorId: Int, productId: Int, deviceName: String?, manufacturerName: String?): Boolean {
+    fun requestUsbPermission(vendorId: Int, productId: Int, deviceName: String?, manufacturerName: String?, result: Result): Boolean {
+      usbPermissionResultFlutterCallback = result
       val usbDevices = getDeviceList().filter{it.vendorId == vendorId && it.productId == productId }
       // if no device, return false
       if (usbDevices.size <= 0) {
@@ -127,6 +132,7 @@ class USBPrinterAdapter {
           filteredDeviceName = true
         }
       }
+      
       // Check if targetUsb is same as current connected usb device or not
       var isSameDevice = false
       if (mUsbDevice != null) {
@@ -141,19 +147,21 @@ class USBPrinterAdapter {
       } 
 
       if (isSameDevice) {
+        result.success(true)
         return true
       }
-      closeConnectionIfExists()
+      //closeConnectionIfExists()
       Log.v(
         LOG_TAG,
         "Request for device: vendor_id: " + targetUsbDevice.vendorId + ", product_id: " + targetUsbDevice.productId +
           ", device_name: " + targetUsbDevice.deviceName  + ", manufacturer_name: " + targetUsbDevice.manufacturerName
       )
       mUSBManager!!.requestPermission(targetUsbDevice, mPermissionIndent)
+      mUsbDevice = targetUsbDevice
       return true
     }
     
-    private fun openConnection(): Boolean {
+    fun openConnection(): Boolean {
         if (mUsbDevice == null) {
             Log.e(LOG_TAG, "USB Deivce is not initialized")
             return false
@@ -162,7 +170,7 @@ class USBPrinterAdapter {
             Log.e(LOG_TAG, "USB Manager is not initialized")
             return false
         }
-        if (mUsbDeviceConnection != null) {
+        if (mUsbDeviceConnection[mUsbDevice!!] != null) {
             Log.i(LOG_TAG, "USB Connection already connected")
             return true
         }
@@ -178,14 +186,14 @@ class USBPrinterAdapter {
                     }
                     Toast.makeText(mContext, "Device connected", Toast.LENGTH_SHORT).show()
                     return if (usbDeviceConnection.claimInterface(usbInterface, true)) {
-                        mEndPoint = ep
-                        mUsbInterface = usbInterface
-                        mUsbDeviceConnection = usbDeviceConnection
-                        true
+                        mEndPoint.put(mUsbDevice!!, ep)
+                        mUsbInterface.put(mUsbDevice!!, usbInterface) 
+                        mUsbDeviceConnection.put(mUsbDevice!!, usbDeviceConnection)
+                        return true
                     } else {
                         usbDeviceConnection.close()
                         Log.e(LOG_TAG, "failed to claim usb connection")
-                        false
+                        return false
                     }
                 }
             }
@@ -200,7 +208,7 @@ class USBPrinterAdapter {
             Log.v(LOG_TAG, "Connected to device")
             Thread {
                 val bytes = text.toByteArray(Charset.forName("UTF-8"))
-                val b = mUsbDeviceConnection!!.bulkTransfer(mEndPoint, bytes, bytes.size, 100000)
+                val b = mUsbDeviceConnection[mUsbDevice!!]!!.bulkTransfer(mEndPoint[mUsbDevice!!], bytes, bytes.size, 100000)
                 Log.i(LOG_TAG, "Return Status: b-->$b")
             }.start()
             true
@@ -211,13 +219,12 @@ class USBPrinterAdapter {
     }
 
     fun printRawText(data: String): Boolean {
-        Log.v(LOG_TAG, "start to print raw data $data")
         val isConnected = openConnection()
         return if (isConnected) {
             Log.v(LOG_TAG, "Connected to device")
             Thread {
                 val bytes = Base64.decode(data, Base64.DEFAULT)
-                val b = mUsbDeviceConnection!!.bulkTransfer(mEndPoint, bytes, bytes.size, 100000)
+                val b = mUsbDeviceConnection[mUsbDevice!!]!!.bulkTransfer(mEndPoint[mUsbDevice!!], bytes, bytes.size, 100000)
                 Log.i(LOG_TAG, "Return Status: $b")
             }.start()
             true
@@ -233,7 +240,7 @@ class USBPrinterAdapter {
         return if (isConnected) {
             Log.v(LOG_TAG, "Connected to device")
             Thread {
-                val b = mUsbDeviceConnection!!.bulkTransfer(mEndPoint, bytes, bytes.size, 100000)
+                val b = mUsbDeviceConnection[mUsbDevice!!]!!.bulkTransfer(mEndPoint[mUsbDevice!!], bytes, bytes.size, 100000)
                 Log.i(LOG_TAG, "Return Status: $b")
             }.start()
             true
