@@ -25,7 +25,6 @@ class USBPrinterAdapter {
     private var mPermissionIndent: PendingIntent? = null
     private var mUsbDevice: UsbDevice? = null
     private var mUsbDeviceConnection = mutableMapOf<String, UsbDeviceConnection?>()
-    private var mUsbInterface = mutableMapOf<String, UsbInterface?>()
     private var mEndPoint = mutableMapOf<String,UsbEndpoint?>()
 
     private val ACTION_USB_PERMISSION = "app.mylekha.client.flutter_usb_printer.USB_PERMISSION"
@@ -172,7 +171,6 @@ class USBPrinterAdapter {
                     Toast.makeText(mContext, "Device connected", Toast.LENGTH_SHORT).show()
                     return if (usbDeviceConnection.claimInterface(usbInterface, true)) {
                         mEndPoint.put(getUsbDeviceString(mUsbDevice!!), ep)
-                        mUsbInterface.put(getUsbDeviceString(mUsbDevice!!), usbInterface) 
                         mUsbDeviceConnection.put(getUsbDeviceString(mUsbDevice!!), usbDeviceConnection)
                         return true
                     } else {
