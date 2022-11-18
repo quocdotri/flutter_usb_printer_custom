@@ -105,7 +105,7 @@ class FlutterUsbPrinterPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
   }
 
   private fun close(result: Result) {
-    adapter!!.closeConnectionIfExists()
+    //adapter!!.closeConnectionIfExists()
     result.success(true)
   }
 
