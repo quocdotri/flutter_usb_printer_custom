@@ -24,6 +24,7 @@ class USBPrinterAdapter {
     private var mUSBManager: UsbManager? = null
     private var mPermissionIndent: PendingIntent? = null
     private var mUsbDevice: UsbDevice? = null
+    private var mUsbDevices = mutableListOf<String>()
     private var mUsbDeviceConnection = mutableMapOf<String, UsbDeviceConnection?>()
     private var mEndPoint = mutableMapOf<String,UsbEndpoint?>()
 
@@ -62,13 +63,18 @@ class USBPrinterAdapter {
                     }
                 }
             } else if (UsbManager.ACTION_USB_DEVICE_DETACHED == action) {
-                if (mUsbDevice != null) {
-                    Toast.makeText(context, "USB device has been turned off", Toast.LENGTH_LONG)
-                        .show()
-                    mUsbDevice = null
-                    mUsbDeviceConnection = mutableMapOf<String, UsbDeviceConnection?>()
-                    mEndPoint = mutableMapOf<String,UsbEndpoint?>()
+                val newUsbDeviceListInString = getDeviceListInString()
+                val disconnectedDevices = mUsbDevices.filterNot { it in newUsbDeviceListInString }
+                Toast.makeText(context, "USB device has been turned off", Toast.LENGTH_LONG).show()
+                disconnectedDevices.forEach {
+                    Log.i(LOG_TAG, "$it has disconnected")
+                    if (mUsbDevice != null && getUsbDeviceString(mUsbDevice!!) == it) {
+                        mUsbDevice = null
+                    }
+                    mUsbDeviceConnection.remove(it)
+                    mEndPoint.remove(it)
                 }
+                mUsbDevices = getDeviceListInString()
             }
         }
     }
@@ -81,6 +87,7 @@ class USBPrinterAdapter {
         val filter = IntentFilter(ACTION_USB_PERMISSION)
         filter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
         mContext!!.registerReceiver(mUsbDeviceReceiver, filter)
+        mUsbDevices = getDeviceListInString()
         Log.v(LOG_TAG, "USB Printer initialized")
     }
 
@@ -96,9 +103,22 @@ class USBPrinterAdapter {
         return ArrayList(mUSBManager!!.deviceList.values)
     }
 
+    fun getDeviceListInString(): MutableList<String> {
+        if (mUSBManager == null) {
+            Toast.makeText(
+                mContext,
+                "USB Manager is not initialized while get device list",
+                Toast.LENGTH_LONG
+            ).show()
+            return mutableListOf<String>()
+        }
+        return mUSBManager!!.deviceList.values.map{getUsbDeviceString(it)}.toMutableList<String>()
+    }
+
     fun requestUsbPermission(vendorId: Int, productId: Int, deviceName: String?, manufacturerName: String?, result: Result): Boolean {
       usbPermissionResultFlutterCallback = result
       val usbDevices = getDeviceList().filter{it.vendorId == vendorId && it.productId == productId }
+      mUsbDevices = getDeviceListInString()
       // if no device, return false
       if (usbDevices.size <= 0) {
         return false
