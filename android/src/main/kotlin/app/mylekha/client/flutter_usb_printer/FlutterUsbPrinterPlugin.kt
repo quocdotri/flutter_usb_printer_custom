@@ -35,6 +35,9 @@ class FlutterUsbPrinterPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
 
   override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
     when (call.method) {
+        "getEndPointMaxPacketSize" -> {
+          getEndPointMaxPacketSize(result)
+        }
         "getUSBDeviceList" -> {
           getUSBDeviceList(result)
         }
@@ -67,6 +70,11 @@ class FlutterUsbPrinterPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
           result.notImplemented()
         }
     }
+  }
+
+  private fun getEndPointMaxPacketSize(result: Result) {
+    val maxPacketSize = adapter!!.getEndPointMaxPacketSize()
+    result.success(maxPacketSize)
   }
 
   private fun getUSBDeviceList(result: Result) {

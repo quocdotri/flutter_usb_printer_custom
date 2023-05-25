@@ -259,4 +259,9 @@ class USBPrinterAdapter {
     fun getUsbDeviceString(usbDevice: UsbDevice): String {
         return "${usbDevice.vendorId}-${usbDevice.productId}-${usbDevice.manufacturerName}-${usbDevice.deviceName}"
     }
+
+    fun getEndPointMaxPacketSize() : Int {
+        val maxPacketSize = mEndPoint[getUsbDeviceString(mUsbDevice!!)]!!.maxPacketSize
+        return maxPacketSize
+    }
 }
