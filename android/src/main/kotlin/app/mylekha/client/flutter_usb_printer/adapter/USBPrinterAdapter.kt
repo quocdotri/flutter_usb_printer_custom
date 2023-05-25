@@ -12,6 +12,9 @@ import android.widget.Toast
 import java.nio.charset.Charset
 import java.util.*
 import io.flutter.plugin.common.MethodChannel.Result
+import java.nio.ByteBuffer
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 
 class USBPrinterAdapter {
@@ -246,8 +249,11 @@ class USBPrinterAdapter {
         return if (isConnected) {
             Log.v(LOG_TAG, "Connected to device")
             Thread {
-                val b = mUsbDeviceConnection[getUsbDeviceString(mUsbDevice!!)]!!.bulkTransfer(mEndPoint[getUsbDeviceString(mUsbDevice!!)], bytes, bytes.size, 100000)
-                Log.i(LOG_TAG, "Return Status: $b")
+                sendDataInChunks(
+                    mUsbDeviceConnection[getUsbDeviceString(mUsbDevice!!)]!!, 
+                    mEndPoint[getUsbDeviceString(mUsbDevice!!)], 
+                    bytes,
+                )
             }.start()
             true
         } else {
@@ -260,8 +266,25 @@ class USBPrinterAdapter {
         return "${usbDevice.vendorId}-${usbDevice.productId}-${usbDevice.manufacturerName}-${usbDevice.deviceName}"
     }
 
-    fun getEndPointMaxPacketSize() : Int {
-        val maxPacketSize = mEndPoint[getUsbDeviceString(mUsbDevice!!)]!!.maxPacketSize
-        return maxPacketSize
+    // Split byte list into chunks and send each chunk with bulkTransfer method
+    fun sendDataInChunks(device: UsbDeviceConnection, endpointAddress: UsbEndpoint?, data: ByteArray) {
+        // Get maximum packet size for the endpoint
+        val maxPacketSize = endpointAddress!!.maxPacketSize
+
+        // Split data into chunks
+        val chunks = data.asList().chunked(maxPacketSize)
+
+        // Send each chunk with bulkTransfer method
+        lifecycleScope.launch {
+            chunks.forEach { chunk ->
+                sendBulkData(device, devicechunk.toByteArray())
+            }
+        }
+    }
+
+    suspend fun sendBulkData(device: UsbDeviceConnection, data: ByteArray) {
+        withContext(Dispatchers.IO) {
+            device.bulkTransfer(endpointAddress, data, chunk.size, 100000)
+        }
     }
 }
