@@ -13,8 +13,6 @@ import java.nio.charset.Charset
 import java.util.*
 import io.flutter.plugin.common.MethodChannel.Result
 import java.nio.ByteBuffer
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.launch
 
 
 class USBPrinterAdapter {
@@ -275,16 +273,14 @@ class USBPrinterAdapter {
         val chunks = data.asList().chunked(maxPacketSize)
 
         // Send each chunk with bulkTransfer method
-        lifecycleScope.launch {
-            chunks.forEach { chunk ->
-                sendBulkData(device, devicechunk.toByteArray())
+        for (chunk in chunks) {
+            val buffer = ByteBuffer.allocate(maxPacketSize)
+            buffer.put(chunk.toByteArray())
+            val transferred = device.bulkTransfer(endpointAddress, buffer.array(), buffer.limit(), 100000)
+            Log.v(LOG_TAG, "$transferred")
+            if (transferred < 0) {
+                // Handle transfer error
             }
-        }
-    }
-
-    suspend fun sendBulkData(device: UsbDeviceConnection, data: ByteArray) {
-        withContext(Dispatchers.IO) {
-            device.bulkTransfer(endpointAddress, data, chunk.size, 100000)
         }
     }
 }
