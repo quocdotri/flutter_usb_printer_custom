@@ -12,6 +12,7 @@ import android.widget.Toast
 import java.nio.charset.Charset
 import java.util.*
 import io.flutter.plugin.common.MethodChannel.Result
+import java.nio.ByteBuffer;
 
 
 class USBPrinterAdapter {
@@ -246,8 +247,20 @@ class USBPrinterAdapter {
         return if (isConnected) {
             Log.v(LOG_TAG, "Connected to device")
             Thread {
-                val b = mUsbDeviceConnection[getUsbDeviceString(mUsbDevice!!)]!!.bulkTransfer(mEndPoint[getUsbDeviceString(mUsbDevice!!)], bytes, bytes.size, 100000)
-                Log.i(LOG_TAG, "Return Status: $b")
+                val buffer = ByteBuffer.allocate(bytes.size)
+                buffer.put(bytes)
+                val usbRequest = UsbRequest()
+                try {
+                    usbRequest.initialize(mUsbDeviceConnection[getUsbDeviceString(mUsbDevice!!)]!!, 
+                        mEndPoint[getUsbDeviceString(mUsbDevice!!)],
+                    );
+                    if (!usbRequest.queue(buffer, bytes.size)) {
+                        false
+                    }
+                    mUsbDeviceConnection[getUsbDeviceString(mUsbDevice!!)]!!.requestWait()
+                } finally {
+                    usbRequest.close()
+                }
             }.start()
             true
         } else {

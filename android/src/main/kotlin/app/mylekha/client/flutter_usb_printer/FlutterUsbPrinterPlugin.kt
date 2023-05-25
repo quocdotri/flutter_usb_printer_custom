@@ -120,8 +120,13 @@ class FlutterUsbPrinterPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
   }
 
   private fun write(bytes: ByteArray?, result: Result) {
-    bytes?.let { adapter!!.write(it) }
-    result.success(true)
+    bytes?.let { 
+      if (adapter!!.write(it) == true) {
+        result.success(true)
+      } else {
+        result.success(false)
+      } 
+    }
   }
 
   override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
