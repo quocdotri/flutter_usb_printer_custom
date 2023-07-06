@@ -63,6 +63,10 @@ class FlutterUsbPrinterPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
           val data = call.argument<ByteArray>("data")
           write(data, result)
         }
+        "writeSplittedList" -> {
+          val data = call.argument<List<List<Int>>>("data")
+          writeSplittedList(data, result)
+        }
         else -> {
           result.notImplemented()
         }
@@ -122,6 +126,16 @@ class FlutterUsbPrinterPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
   private fun write(bytes: ByteArray?, result: Result) {
     bytes?.let { adapter!!.write(it) }
     result.success(true)
+  }
+
+  private fun writeSplittedList(byteLists: List<List<Int>>?, result: Result) {
+    byteLists?.let {
+        if (adapter!!.writeSplittedList(it) == true) {
+          result.success(true)
+        } else {
+          result.success(false)
+        } 
+      } 
   }
 
   override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {

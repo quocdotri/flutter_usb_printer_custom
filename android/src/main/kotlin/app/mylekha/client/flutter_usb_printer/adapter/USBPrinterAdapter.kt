@@ -12,12 +12,15 @@ import android.widget.Toast
 import java.nio.charset.Charset
 import java.util.*
 import io.flutter.plugin.common.MethodChannel.Result
+import java.nio.ByteBuffer;
 
+var usbExecutionTimeInSeconds = 0.0
 
 class USBPrinterAdapter {
+    val currentTimeSecond: Double
+        get() = System.currentTimeMillis() / 1000.0
 
     private var mInstance: USBPrinterAdapter? = null
-
 
     private val LOG_TAG = "Flutter USB Printer"
     private var mContext: Context? = null
@@ -254,6 +257,54 @@ class USBPrinterAdapter {
             Log.v(LOG_TAG, "failed to connected to device")
             false
         }
+    }
+
+    fun writeSplittedList(byteLists: List<List<Int>>): Boolean {
+        try {
+            // Nếu khóa đang bị lấy bởi hàm khác thì đợi khóa được release
+            while (currentTimeSecond - usbExecutionTimeInSeconds <=5) {
+                kotlinx.coroutines.delay(1000)
+            }
+            usbExecutionTimeInSeconds = currentTimeSecond;
+            Log.v(LOG_TAG, "start to print raw data")
+            val isConnected = openConnection()
+            return if (isConnected) {
+                Log.v(LOG_TAG, "Connected to device")
+                Thread {
+                    // val b = mUsbDeviceConnection[getUsbDeviceString(mUsbDevice!!)]!!.bulkTransfer(mEndPoint[getUsbDeviceString(mUsbDevice!!)], bytes, bytes.size, 100000)
+                    // Log.i(LOG_TAG, "Return Status: $b")
+                    val usbRequest = UsbRequest()
+
+                    for (byteList in byteLists) {
+                        val buffer = ByteBuffer.allocate(byteList.size)
+                        for (value in byteList) {
+                            buffer.put(value.toByte())
+                        }
+                        try {
+                            usbRequest.initialize(mUsbDeviceConnection[getUsbDeviceString(mUsbDevice!!)]!!, 
+                                mEndPoint[getUsbDeviceString(mUsbDevice!!)],
+                            );
+                            if (!usbRequest.queue(buffer, byteList.size)) {
+                                false
+                            }
+                            mUsbDeviceConnection[getUsbDeviceString(mUsbDevice!!)]!!.requestWait()
+                        } finally {
+                            usbRequest.close()
+                        }
+                    }
+                }.start()
+                true
+            } else {
+                Log.v(LOG_TAG, "failed to connected to device")
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(e);
+        } finally {
+            // Release khóa
+            usbExecutionTimeInSeconds = 0;  
+        }
+
     }
 
     fun getUsbDeviceString(usbDevice: UsbDevice): String {
