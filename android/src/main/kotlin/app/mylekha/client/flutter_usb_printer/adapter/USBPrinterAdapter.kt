@@ -13,10 +13,6 @@ import java.nio.charset.Charset
 import java.util.*
 import io.flutter.plugin.common.MethodChannel.Result
 import java.nio.ByteBuffer;
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
-import java.util.concurrent.TimeUnit
-import kotlinx.coroutines.*
 
 var usbExecutionTimeInSeconds = 0.0
 
@@ -263,40 +259,24 @@ class USBPrinterAdapter {
         }
     }
 
-    suspend fun writeSplittedList(byteLists: List<List<Int>>): Boolean {
+    fun writeSplittedList(byteLists: List<List<Int>>): Boolean {
         try {
             // If the lock is being held by another function, wait until it is released
             while (currentTimeSecond - usbExecutionTimeInSeconds <= 5) {
-                delay(1000)
+                Thread.sleep(1000)
             }
             usbExecutionTimeInSeconds = currentTimeSecond
             Log.v(LOG_TAG, "start to print raw data")
             val isConnected = openConnection()
             return if (isConnected) {
                 Log.v(LOG_TAG, "Connected to device")
-                
-                coroutineScope {
-                    for (byteList in byteLists) {
-                        launch {
-                            val buffer = ByteBuffer.allocate(byteList.size)
-                            for (value in byteList) {
-                                buffer.put(value.toByte())
-                            }
-                            val usbRequest = UsbRequest()
-                            try {
-                                usbRequest.initialize(
-                                    mUsbDeviceConnection[getUsbDeviceString(mUsbDevice!!)]!!,
-                                    mEndPoint[getUsbDeviceString(mUsbDevice!!)]
-                                )
-                                if (!usbRequest.queue(buffer, byteList.size)) {
-                                    false
-                                }
-                                mUsbDeviceConnection[getUsbDeviceString(mUsbDevice!!)]!!.requestWait()
-                            } finally {
-                                usbRequest.close()
-                            }
-                        }
-                    }
+
+                for (byteList in byteLists) {
+                    val intArray = byteList.toIntArray()
+                    val bytes = ByteArray(intArray.size) { intArray[it].toByte() }
+
+                    val b = mUsbDeviceConnection[getUsbDeviceString(mUsbDevice!!)]!!.bulkTransfer(mEndPoint[getUsbDeviceString(mUsbDevice!!)], bytes, bytes.size, 100000)
+                    Log.i(LOG_TAG, "Return Status: $b")
                 }
                 true
             } else {
