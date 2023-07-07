@@ -13,6 +13,10 @@ import java.nio.charset.Charset
 import java.util.*
 import io.flutter.plugin.common.MethodChannel.Result
 import java.nio.ByteBuffer;
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.*
 
 var usbExecutionTimeInSeconds = 0.0
 
@@ -259,52 +263,53 @@ class USBPrinterAdapter {
         }
     }
 
-    fun writeSplittedList(byteLists: List<List<Int>>): Boolean {
+    suspend fun writeSplittedList(byteLists: List<List<Int>>): Boolean {
         try {
-            // Nếu khóa đang bị lấy bởi hàm khác thì đợi khóa được release
-            while (currentTimeSecond - usbExecutionTimeInSeconds <=5) {
-                kotlinx.coroutines.delay(1000)
+            // If the lock is being held by another function, wait until it is released
+            while (currentTimeSecond - usbExecutionTimeInSeconds <= 5) {
+                delay(1000)
             }
-            usbExecutionTimeInSeconds = currentTimeSecond;
+            usbExecutionTimeInSeconds = currentTimeSecond
             Log.v(LOG_TAG, "start to print raw data")
             val isConnected = openConnection()
             return if (isConnected) {
                 Log.v(LOG_TAG, "Connected to device")
-                Thread {
-                    // val b = mUsbDeviceConnection[getUsbDeviceString(mUsbDevice!!)]!!.bulkTransfer(mEndPoint[getUsbDeviceString(mUsbDevice!!)], bytes, bytes.size, 100000)
-                    // Log.i(LOG_TAG, "Return Status: $b")
-                    val usbRequest = UsbRequest()
-
+                
+                coroutineScope {
                     for (byteList in byteLists) {
-                        val buffer = ByteBuffer.allocate(byteList.size)
-                        for (value in byteList) {
-                            buffer.put(value.toByte())
-                        }
-                        try {
-                            usbRequest.initialize(mUsbDeviceConnection[getUsbDeviceString(mUsbDevice!!)]!!, 
-                                mEndPoint[getUsbDeviceString(mUsbDevice!!)],
-                            );
-                            if (!usbRequest.queue(buffer, byteList.size)) {
-                                false
+                        launch {
+                            val buffer = ByteBuffer.allocate(byteList.size)
+                            for (value in byteList) {
+                                buffer.put(value.toByte())
                             }
-                            mUsbDeviceConnection[getUsbDeviceString(mUsbDevice!!)]!!.requestWait()
-                        } finally {
-                            usbRequest.close()
+                            val usbRequest = UsbRequest()
+                            try {
+                                usbRequest.initialize(
+                                    mUsbDeviceConnection[getUsbDeviceString(mUsbDevice!!)]!!,
+                                    mEndPoint[getUsbDeviceString(mUsbDevice!!)]
+                                )
+                                if (!usbRequest.queue(buffer, byteList.size)) {
+                                    false
+                                }
+                                mUsbDeviceConnection[getUsbDeviceString(mUsbDevice!!)]!!.requestWait()
+                            } finally {
+                                usbRequest.close()
+                            }
                         }
                     }
-                }.start()
+                }
                 true
             } else {
-                Log.v(LOG_TAG, "failed to connected to device")
+                Log.v(LOG_TAG, "Failed to connect to device")
                 false
             }
         } catch (e: Exception) {
-            Log.e(e);
+            Log.e(LOG_TAG, e.toString())
         } finally {
-            // Release khóa
-            usbExecutionTimeInSeconds = 0;  
+            // Release the lock
+            usbExecutionTimeInSeconds = 0.0
         }
-
+        return true
     }
 
     fun getUsbDeviceString(usbDevice: UsbDevice): String {

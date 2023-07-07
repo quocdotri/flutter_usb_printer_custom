@@ -12,6 +12,10 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+
 
 
 
@@ -65,7 +69,14 @@ class FlutterUsbPrinterPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
         }
         "writeSplittedList" -> {
           val data = call.argument<List<List<Int>>>("data")
-          writeSplittedList(data, result)
+          // Call your suspend function using coroutines
+          CoroutineScope(Dispatchers.Main).launch {
+              try {
+                  writeSplittedList(data, result)
+              } catch (e: Exception) {
+                  result.error("ERROR_CODE", e.message, null)
+              }
+          }
         }
         else -> {
           result.notImplemented()
@@ -128,7 +139,7 @@ class FlutterUsbPrinterPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
     result.success(true)
   }
 
-  private fun writeSplittedList(byteLists: List<List<Int>>?, result: Result) {
+  private suspend fun writeSplittedList(byteLists: List<List<Int>>?, result: Result) {
     byteLists?.let {
         if (adapter!!.writeSplittedList(it) == true) {
           result.success(true)
