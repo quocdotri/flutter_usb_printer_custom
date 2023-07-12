@@ -14,12 +14,8 @@ import java.util.*
 import io.flutter.plugin.common.MethodChannel.Result
 import java.nio.ByteBuffer;
 
-var usbExecutionTimeInSeconds = 0.0
 
 class USBPrinterAdapter {
-    val currentTimeSecond: Double
-        get() = System.currentTimeMillis() / 1000.0
-
     private var mInstance: USBPrinterAdapter? = null
 
     private val LOG_TAG = "Flutter USB Printer"
@@ -260,36 +256,26 @@ class USBPrinterAdapter {
     }
 
     fun writeSplittedList(byteLists: List<List<Int>>): Boolean {
-        try {
-            // If the lock is being held by another function, wait until it is released
-            while (currentTimeSecond - usbExecutionTimeInSeconds <= 5) {
-                Thread.sleep(1000)
-            }
-            usbExecutionTimeInSeconds = currentTimeSecond
-            Log.v(LOG_TAG, "start to print raw data")
-            val isConnected = openConnection()
-            return if (isConnected) {
-                Log.v(LOG_TAG, "Connected to device")
+        Log.v(LOG_TAG, "start to print raw data")
+        val isConnected = openConnection()
+        return if (isConnected) {
+            Log.v(LOG_TAG, "Connected to device")
+            Thread {
+                synchronized(this) {
+                    for (byteList in byteLists) {
+                        val intArray = byteList.toIntArray()
+                        val bytes = ByteArray(intArray.size) { intArray[it].toByte() }
 
-                for (byteList in byteLists) {
-                    val intArray = byteList.toIntArray()
-                    val bytes = ByteArray(intArray.size) { intArray[it].toByte() }
-
-                    val b = mUsbDeviceConnection[getUsbDeviceString(mUsbDevice!!)]!!.bulkTransfer(mEndPoint[getUsbDeviceString(mUsbDevice!!)], bytes, bytes.size, 100000)
-                    Log.i(LOG_TAG, "Return Status: $b")
+                        val b = mUsbDeviceConnection[getUsbDeviceString(mUsbDevice!!)]!!.bulkTransfer(mEndPoint[getUsbDeviceString(mUsbDevice!!)], bytes, bytes.size, 100000)
+                        Log.i(LOG_TAG, "Return Status: $b")
+                    }
                 }
-                true
-            } else {
-                Log.v(LOG_TAG, "Failed to connect to device")
-                false
-            }
-        } catch (e: Exception) {
-            Log.e(LOG_TAG, e.toString())
-        } finally {
-            // Release the lock
-            usbExecutionTimeInSeconds = 0.0
+            }.start()
+            true
+        } else {
+            Log.v(LOG_TAG, "failed to connected to device")
+            false
         }
-        return true
     }
 
     fun getUsbDeviceString(usbDevice: UsbDevice): String {
