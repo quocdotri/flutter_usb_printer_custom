@@ -240,21 +240,23 @@ class USBPrinterAdapter {
     }
 
     fun writeSplittedList(byteLists: List<List<Int>>): Boolean {
-        Log.v(LOG_TAG, "start to print raw data")
-        val isConnected = openConnection()
-        return if (isConnected) {
-            Log.v(LOG_TAG, "Connected to device")
-            for (byteList in byteLists) {
-                val intArray = byteList.toIntArray()
-                val bytes = ByteArray(intArray.size) { intArray[it].toByte() }
+        synchronized(this) {
+            Log.v(LOG_TAG, "start to print raw data")
+            val isConnected = openConnection()
+            return if (isConnected) {
+                Log.v(LOG_TAG, "Connected to device")
+                    for (byteList in byteLists) {
+                        val intArray = byteList.toIntArray()
+                        val bytes = ByteArray(intArray.size) { intArray[it].toByte() }
 
-                val b = mUsbDeviceConnection[getUsbDeviceString(mUsbDevice!!)]!!.bulkTransfer(mEndPoint[getUsbDeviceString(mUsbDevice!!)], bytes, bytes.size, 100000)
-                Log.i(LOG_TAG, "Return Status: $b")
+                        val b = mUsbDeviceConnection[getUsbDeviceString(mUsbDevice!!)]!!.bulkTransfer(mEndPoint[getUsbDeviceString(mUsbDevice!!)], bytes, bytes.size, 100000)
+                        Log.i(LOG_TAG, "Return Status: $b")
+                    }
+                true
+            } else {
+                Log.v(LOG_TAG, "failed to connected to device")
+                false
             }
-            true
-        } else {
-            Log.v(LOG_TAG, "failed to connected to device")
-            false
         }
     }
 
