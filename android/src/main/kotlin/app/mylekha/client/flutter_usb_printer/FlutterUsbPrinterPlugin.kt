@@ -60,10 +60,6 @@ class FlutterUsbPrinterPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
           val raw = call.argument<String>("raw")
           printRawText(raw, result)
         }
-        "write" -> {
-          val data = call.argument<ByteArray>("data")
-          write(data, result)
-        }
         "writeSplittedList" -> {
           val data = call.argument<List<List<Int>>>("data")
           writeSplittedList(data, result)
@@ -121,11 +117,6 @@ class FlutterUsbPrinterPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
 
   private fun printRawText(base64Data: String?, result: Result) {
     adapter!!.printRawText(base64Data!!)
-    result.success(true)
-  }
-
-  private fun write(bytes: ByteArray?, result: Result) {
-    bytes?.let { adapter!!.write(it) }
     result.success(true)
   }
 
