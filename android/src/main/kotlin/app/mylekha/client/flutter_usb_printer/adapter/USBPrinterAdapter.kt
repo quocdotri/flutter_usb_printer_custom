@@ -251,6 +251,7 @@ class USBPrinterAdapter {
 
                         val b = mUsbDeviceConnection[getUsbDeviceString(mUsbDevice!!)]!!.bulkTransfer(mEndPoint[getUsbDeviceString(mUsbDevice!!)], bytes, bytes.size, 100000)
                         Log.i(LOG_TAG, "Return Status: $b")
+                        Thread.sleep(50)
                     }
                 true
             } else {
