@@ -12,12 +12,11 @@ import android.widget.Toast
 import java.nio.charset.Charset
 import java.util.*
 import io.flutter.plugin.common.MethodChannel.Result
+import java.nio.ByteBuffer;
 
 
 class USBPrinterAdapter {
-
     private var mInstance: USBPrinterAdapter? = null
-
 
     private val LOG_TAG = "Flutter USB Printer"
     private var mContext: Context? = null
@@ -240,19 +239,24 @@ class USBPrinterAdapter {
         }
     }
 
-    fun write(bytes: ByteArray): Boolean {
-        Log.v(LOG_TAG, "start to print raw data $bytes")
-        val isConnected = openConnection()
-        return if (isConnected) {
-            Log.v(LOG_TAG, "Connected to device")
-            Thread {
-                val b = mUsbDeviceConnection[getUsbDeviceString(mUsbDevice!!)]!!.bulkTransfer(mEndPoint[getUsbDeviceString(mUsbDevice!!)], bytes, bytes.size, 100000)
-                Log.i(LOG_TAG, "Return Status: $b")
-            }.start()
-            true
-        } else {
-            Log.v(LOG_TAG, "failed to connected to device")
-            false
+    fun writeSplittedList(byteLists: List<List<Int>>): Boolean {
+        synchronized(this) {
+            Log.v(LOG_TAG, "start to print raw data")
+            val isConnected = openConnection()
+            return if (isConnected) {
+                Log.v(LOG_TAG, "Connected to device")
+                    for (byteList in byteLists) {
+                        val intArray = byteList.toIntArray()
+                        val bytes = ByteArray(intArray.size) { intArray[it].toByte() }
+
+                        val b = mUsbDeviceConnection[getUsbDeviceString(mUsbDevice!!)]!!.bulkTransfer(mEndPoint[getUsbDeviceString(mUsbDevice!!)], bytes, bytes.size, 100000)
+                        Log.i(LOG_TAG, "Return Status: $b")
+                    }
+                true
+            } else {
+                Log.v(LOG_TAG, "failed to connected to device")
+                false
+            }
         }
     }
 

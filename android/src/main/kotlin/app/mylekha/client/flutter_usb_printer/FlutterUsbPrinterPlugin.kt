@@ -15,6 +15,7 @@ import io.flutter.plugin.common.MethodChannel.Result
 
 
 
+
 /** FlutterUsbPrinterPlugin */
 class FlutterUsbPrinterPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
   private var adapter: USBPrinterAdapter? = null
@@ -59,9 +60,9 @@ class FlutterUsbPrinterPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
           val raw = call.argument<String>("raw")
           printRawText(raw, result)
         }
-        "write" -> {
-          val data = call.argument<ByteArray>("data")
-          write(data, result)
+        "writeSplittedList" -> {
+          val data = call.argument<List<List<Int>>>("data")
+          writeSplittedList(data, result)
         }
         else -> {
           result.notImplemented()
@@ -119,9 +120,14 @@ class FlutterUsbPrinterPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
     result.success(true)
   }
 
-  private fun write(bytes: ByteArray?, result: Result) {
-    bytes?.let { adapter!!.write(it) }
-    result.success(true)
+  private fun writeSplittedList(byteLists: List<List<Int>>?, result: Result) {
+    byteLists?.let {
+        if (adapter!!.writeSplittedList(it) == true) {
+          result.success(true)
+        } else {
+          result.success(false)
+        } 
+      } 
   }
 
   override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
