@@ -64,7 +64,6 @@ class USBPrinterAdapter {
             } else if (UsbManager.ACTION_USB_DEVICE_DETACHED == action) {
                 val newUsbDeviceListInString = getDeviceListInString()
                 val disconnectedDevices = mUsbDevices.filterNot { it in newUsbDeviceListInString }
-                Toast.makeText(context, "USB device has been turned off", Toast.LENGTH_LONG).show()
                 disconnectedDevices.forEach {
                     Log.i(LOG_TAG, "$it has disconnected")
                     if (mUsbDevice != null && getUsbDeviceString(mUsbDevice!!) == it) {
